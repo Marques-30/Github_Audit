@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
 import click
-import chardet
+import csv
 from utils import request_get, BOTS, to_string
 from terminaltables import AsciiTable
-
 
 def get_user(login):
     """ Get user details, given their login """
@@ -30,25 +29,32 @@ def get_org_owners():
 
 def get_members():
     count =1
-    while count <= 20:
-        try:
-            """ Get the users who are listed as owners for the Docker org """
-            url = "https://api.github.com/orgs/docker/members?role=all&page={}".format(count)
-            result = request_get(url)
-            grouping = []
-            for res in result:
-                login = res.get('login')
-                if login not in BOTS:
-                    user = get_user(login)
-                    user_detail = {'login': login, 'name': user.get('name'), 'email': user.get('email')}
-                    grouping.append(user_detail)
+    """Creates a CSV file and writes the list of users into it"""
+    with open('Github.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Github Handle", "User name", "Email"])
+        while count <= 500:
+            try:
+                """ Get the users who are listed as owners for the Docker org """
+                url = "https://api.github.com/orgs/docker/members?role=all&page={}&per_page=1".format(count)
+                result = request_get(url)
+                grouping = []
+                for res in result:
+                    login = res.get('login')
+                    if login not in BOTS:
+                        user = get_user(login)
+                        user_detail = {'login': login, 'name': user.get(u'name'), 'email': user.get('email')}
+                        grouping.append(user_detail)
         
-            for member in grouping:
-                print(" - {}, {}, {}".format(member.get('login'), member.get('name'), member.get('email')))
-            #print("\n")
-        except UnicodeEncodeError:
-            print "name has symbol"
-        count += 1
+                for member in grouping:
+                    print(" - {}, {}, {}".format(member.get('login'), member.get(u'name'), member.get('email')))
+                    writer.writerow([member.get('login'), member.get(u'name'), member.get('email')])
+            except UnicodeEncodeError:
+                username = member.get(u'name').encode('utf_32')
+                s = username.decode('utf_32')
+                print(" - {}, " + s + ", {}").format(member.get(u'login'), member.get('email'))
+                writer.writerow([member.get('login'), member.get(u'name').decode('utf_32'), member.get('email')])
+            count += 1
 
 
 def get_team_maintainers(team_id):
@@ -182,7 +188,7 @@ def owners():
 @cli.command()
 def members():
     """View all members Docker Github"""
-    print("Docker Github members\n----------------")
+    print("Docker Github members\n----------------------\n")
     #list of all memebers within docker Github
     get_members()
 
